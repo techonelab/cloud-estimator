@@ -1,26 +1,35 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS 
 from calculator import AWSCostEstimator
 
 app = Flask(__name__)
-calc = AWSCostEstimator()
+CORS(app)
 
-@app.route('/services', methods=['GET'])
-def list_services():
-    # Step 1: UI calls this to fill the first dropdown
-    return jsonify(calc.get_all_svc_codes())
+estimator = AWSCostEstimator()
 
-@app.route('/attributes/<service_code>', methods=['GET'])
-def get_attribs(service_code):
-    # Step 2: UI calls this to find out what dropdowns to build
-    return jsonify(calc.get_svc_attributes(service_code))
+@app.route('/api/services', methods=['GET'])
+def get_services():
+    return jsonify(estimator.get_all_svc_codes())
 
-@app.route('/estimate', methods=['POST'])
-def estimate():
-    # Step 3: UI calls this to get the final price
-    data = request.json
-    # data format: {"service": "AmazonEC2", "selections": {...}, "quantity": 1}
-    result = calc.calculate_estimate(data['service'], data['selections'], data.get('quantity', 1))
+@app.route('/api/attributes/<service_code>', methods=['GET'])
+def get_attributes(service_code):
+    return jsonify(estimator.get_svc_attributes(service_code))
+
+@app.route('/api/attribute-values/<service_code>/<attr_name>', methods=['GET'])
+def get_values(service_code, attr_name):
+    return jsonify(estimator.get_svc_attribute_values(service_code, attr_name))
+
+@app.route('/api/estimate', methods=['POST'])
+def get_estimate():
+    data = request.get_json()
+    service_code = data.get('service')
+    selections = data.get('selections', {})
+    quantity = data.get('quantity', 1)
+
+    # Use the logic in calculator.py
+    result = estimator.calculate_estimate(service_code, selections, quantity)
     return jsonify(result)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    # host='0.0.0.0' makes it accessible on your local network
+    app.run(host='0.0.0.0', port=5000, debug=True)
